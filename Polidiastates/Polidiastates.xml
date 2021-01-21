@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Polidiastates</name>
+    </assembly>
+    <members>
+        <member name="T:Polidiastates.TextDocument">
+            <summary>
+            Represents a text document
+            </summary>
+        </member>
+        <member name="F:Polidiastates.TextDocument.mText">
+            <summary>
+            The member of the <see cref="P:Polidiastates.TextDocument.Text"/>
+            </summary>
+        </member>
+        <member name="F:Polidiastates.TextDocument.mHash">
+            <summary>
+            The member of the <see cref="P:Polidiastates.TextDocument.Hash"/> property
+            </summary>
+        </member>
+        <member name="P:Polidiastates.TextDocument.Text">
+            <summary>
+            The text
+            </summary>
+        </member>
+        <member name="P:Polidiastates.TextDocument.Words">
+            <summary>
+            The word of the text
+            </summary>
+        </member>
+        <member name="P:Polidiastates.TextDocument.Hash">
+            <summary>
+            The hash
+            </summary>
+        </member>
+        <member name="M:Polidiastates.TextDocument.#ctor">
+            <summary>
+            Default constructor
+            </summary>
+        </member>
+        <member name="M:Polidiastates.TextDocument.ToString">
+            <summary>
+            Returns a string that represents the current object
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Polidiastates.TextDocument.Equals(System.Object)">
+            <summary>
+            Determines whether the specified object is equal to the current object
+            </summary>
+            <param name="obj">The object to compare with the current object</param>
+            <returns></returns>
+        </member>
+        <member name="M:Polidiastates.TextDocument.GetHashCode">
+            <summary>
+            Serves as the default hash function
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="T:Polidiastates.StringExtensions">
+            <summary>
+            Extension methods for <see cref="T:System.String"/>s
+            </summary>
+        </member>
+        <member name="M:Polidiastates.StringExtensions.StripPunctuation(System.String)">
+            <summary>
+            Remove the punctuation from the specified <paramref name="s"/>
+            </summary>
+            <param name="s">The string</param>
+            <returns></returns>
+        </member>
+        <member name="P:Polidiastates.LSH.Bands">
+            <summary>
+            The bads
+            </summary>
+        </member>
+        <member name="P:Polidiastates.LSH.Indexes">
+            <summary>
+            The indexes mapper
+            </summary>
+        </member>
+        <member name="P:Polidiastates.LSH.Documents">
+            <summary>
+            The documents
+            </summary>
+        </member>
+        <member name="P:Polidiastates.LSH.Words">
+            <summary>
+            The words
+            </summary>
+        </member>
+        <member name="M:Polidiastates.LSH.#ctor(System.Collections.Generic.IEnumerable{Polidiastates.TextDocument})">
+            <summary>
+            Default constructor
+            </summary>
+        </member>
+    </members>
+</doc>

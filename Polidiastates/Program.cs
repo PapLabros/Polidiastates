@@ -13,21 +13,22 @@ namespace Polidiastates
     {
         static void Main(string[] args)
         {
-            // Creates a list of user data model for the employees
+            // Creates a list of documents
             var documents = new Faker<TextDocument>()
-                .RuleFor(x => x.Text, faker => faker.Lorem.Text())
+                .RuleFor(x => x.Text, faker => faker.Lorem.Sentence())
                 .Generate(10000);
 
-            // Create the indexing
-            var indexed = PerformIndexing(documents, documents.SelectMany(x => x.Words).Distinct());
 
 
+            var lsh = new LSH(documents, 50000);
+
+            var lshSearch = lsh.Search("cum");
+            var linearSearch = documents.Where(x => x.Text.Split(" ").Contains("cum")).ToList();
 
             Console.ReadLine();
         }
 
-        private static Dictionary<int, HashSet<TextDocument>> PerformIndexing(IEnumerable<TextDocument> documents, IEnumerable<string> indexes) 
-            => indexes.Select(x => x.ToLower()).ToDictionary(x => x.GetHashCode(), x => documents.Where(y => y.Words.Contains(x)).ToHashSet());
+        
     }
 
     /// <summary>
@@ -152,14 +153,32 @@ namespace Polidiastates
         }
     }
 
-    public class LSH
+    /// <summary>
+    /// The band
+    /// </summary>
+    public struct Band
     {
         #region Public Properties
 
         /// <summary>
-        /// The indexes mapper
+        /// The min hash value
         /// </summary>
-        public Dictionary<int, HashSet<TextDocument>> Indexes { get; }
+        public int MinHash { get; }
+
+        /// <summary>
+        /// The max hash value
+        /// </summary>
+        public int MaxHash { get; }
+
+        /// <summary>
+        /// The buckets
+        /// </summary>
+        public Dictionary<int, HashSet<TextDocument>> Buckets { get; }
+
+        /// <summary>
+        /// The number of buckets
+        /// </summary>
+        public int NumberOfBuckets { get; }
 
         #endregion
 
@@ -168,87 +187,119 @@ namespace Polidiastates
         /// <summary>
         /// Default constructor
         /// </summary>
-        /// <param name="indexes">The indexes</param>
-        public LSH(Dictionary<int, HashSet<TextDocument>> indexes) : base()
+        /// <param name="minHash">The min hash</param>
+        /// <param name="maxHash">The max hash</param>
+        /// <param name="buckets">The buckets</param>
+        public Band(int minHash, int maxHash, Dictionary<int, HashSet<TextDocument>> buckets)
         {
-            Indexes = indexes ?? throw new ArgumentNullException(nameof(indexes));
-
-
+            MinHash = minHash;
+            MaxHash = maxHash;
+            Buckets = buckets;
+            NumberOfBuckets = buckets.Count();
         }
 
         #endregion
     }
 
-    public class LSH2
+    /// <summary>
+    /// The LSH
+    /// </summary>
+    public class LSH
     {
-        Dictionary<int, HashSet<int>> m_lshBuckets = new Dictionary<int, HashSet<int>>();
+        #region Public Properties
 
-        int[,] minHashes;
-        int numBands;
-        int numHashFunctions;
-        int rowsPerBand;
-        int numSets;
-        List<SortedList<int, List<int>>> lshBuckets = new List<SortedList<int, List<int>>>();
+        /// <summary>
+        /// The hash offset used for creating the bands
+        /// </summary>
+        public int HashOffset { get; }
 
-        public LSH2(int[,] minHashes, int rowsPerBand)
+        /// <summary>
+        /// The bads
+        /// </summary>
+        public IEnumerable<Band> Bands { get; }
+
+        /// <summary>
+        /// The indexes mapper
+        /// </summary>
+        public SortedDictionary<int, HashSet<TextDocument>> Indexes { get; }
+
+        /// <summary>
+        /// The documents
+        /// </summary>
+        public IEnumerable<TextDocument> Documents { get; }
+
+        /// <summary>
+        /// The words
+        /// </summary>
+        public IEnumerable<string> Words { get; }
+
+        #endregion
+
+        #region Constructors
+
+        /// <summary>
+        /// Default constructor
+        /// </summary>
+        /// <param name="documents">The documents</param>
+        /// <param name="hashOffset">The hash offset used for creating the bands</param>
+        public LSH(IEnumerable<TextDocument> documents, int hashOffset) : base()
         {
-            this.minHashes = minHashes;
-            numHashFunctions = minHashes.GetUpperBound(1) + 1;
-            numSets = minHashes.GetUpperBound(0) + 1;
-            this.rowsPerBand = rowsPerBand;
-            this.numBands = numHashFunctions / rowsPerBand;
-        }
+            Documents = documents ?? throw new ArgumentNullException(nameof(documents));
+            HashOffset = hashOffset;
+            Words = documents.SelectMany(x => x.Words).Distinct().ToList();
 
-        public void Calc()
-        {
-            var thisHash = 0;
+            Indexes = PerformIndexing(documents);
 
-            for (var b = 0; b < numBands; b++)
+            var bands = new List<Band>();
+
+            for(var i = 0; i<= Indexes.Count - 1; i++)
             {
-                var thisSL = new SortedList<int, List<int>>();
-                for (var s = 0; s < numSets; s++)
-                {
-                    var hashValue = 0;
-                    for (var th = thisHash; th < thisHash + rowsPerBand; th++)
-                    {
-                        hashValue = unchecked(hashValue * 1174247 + minHashes[s, th]);
-                    }
-                    if (!thisSL.ContainsKey(hashValue))
-                    {
-                        thisSL.Add(hashValue, new List<int>());
-                    }
-                    thisSL[hashValue].Add(s);
-                }
-                thisHash += rowsPerBand;
-                var copy = new SortedList<int, List<int>>();
-                foreach (var ic in thisSL.Keys)
-                {
-                    if (thisSL[ic].Count() > 1)
-                    {
-                        copy.Add(ic, thisSL[ic]);
-                    }
-                }
-                lshBuckets.Add(copy);
+                var hash = Indexes.Keys.ElementAt(i);
+
+                var maxHash = hash + (2 * HashOffset);
+
+                // Create the band
+                var band = new Band(hash, maxHash, Indexes.Where(x => x.Key >= hash && x.Key <= maxHash).ToDictionary(x => x.Key, x => x.Value));
+
+                bands.Add(band);
+
+                i += band.NumberOfBuckets - 1;
             }
+
+            Bands = bands;
         }
 
-        public List<int> GetNearest(int n)
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// Searches using the specified <paramref name="word"/>
+        /// </summary>
+        /// <param name="word">The word</param>
+        /// <returns></returns>
+        public IEnumerable<TextDocument> Search(string word)
         {
-            var nearest = new List<int>();
-            foreach (var b in lshBuckets)
-            {
-                foreach (var li in b.Values)
-                {
-                    if (li.Contains(n))
-                    {
-                        nearest.AddRange(li);
-                        break;
-                    }
-                }
-            }
-            nearest = nearest.Distinct().ToList();
-            nearest.Remove(n);  // remove the document itself
-            return nearest;
+            // Get the hash of the word
+            var hash = word.GetHashCode();
+
+            // Get the documents from the bands
+            return Bands.Where(x => x.MinHash <= hash && x.MaxHash >= hash).SelectMany(x => x.Buckets.Values.SelectMany(y => y)).ToList();
         }
+
+        #endregion
+
+        #region Private Methods
+
+        /// <summary>
+        /// Performs the indexing using the specified <paramref name="documents"/>
+        /// </summary>
+        /// <param name="documents">The documents</param>
+        /// <returns></returns>
+        private SortedDictionary<int, HashSet<TextDocument>> PerformIndexing(IEnumerable<TextDocument> documents)
+            => new SortedDictionary<int, HashSet<TextDocument>>(documents.SelectMany(x => x.Words).Distinct().Select(x => x.ToLower()).ToDictionary(x => x.GetHashCode(), x => documents.Where(y => y.Words.Contains(x)).ToHashSet()));
+
+        #endregion
     }
 }
